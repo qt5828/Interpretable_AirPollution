@@ -60,27 +60,6 @@ class LSTM(nn.Module):
         
         return out
     
-# def __init__(self, num_classes, input_size, hidden_size, num_layers):
-#     super().__init__()
-#     self.rnn = nn.RNN(input_size, hidden_size, num_layers, batch_first=True)
-#     self.linear = nn.Linear(hidden_size, num_classes)
-    
-# def forward(self, x):
-#     # x, _ = self.rnn(x)
-#     # x = self.linear(x)
-#     # return x
-#     h_0 = Variable(torch.zeros(
-#         self.num_layers, x.size(0), self.hidden_size)).cuda()
-    
-#     c_0 = Variable(torch.zeros(
-#         self.num_layers, x.size(0), self.hidden_size)).cuda()
-#     # Propagate input through LSTM
-#     ula, (h_out, _) = self.rnn(x, (h_0, c_0))
-    
-#     #h_out = h_out.view(-1, self.hidden_size)
-#     out = self.fc(ula)
-    
-#     return out
     
 class RNN(nn.Module):
     
