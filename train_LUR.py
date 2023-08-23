@@ -33,6 +33,11 @@ def seed_everything(seed):
     random.seed(seed)
     os.environ["PYTHONHASHSEED"] = str(seed)
     
+def seed_worker(_worker_id):
+    worker_seed = torch.initial_seed() % 2**32
+    np.random.seed(worker_seed)
+    random.seed(worker_seed)
+    
 seed_everything(100)
 device = 'cuda'
 
@@ -299,13 +304,13 @@ def create_look_ahead_mask(size, device=device):
 
 if __name__ == '__main__':
 
-  for SELECTED_COLUMN in ["o3_median", "pm25_median", "so2_median", "pm10_median", "no2_median", "co_median"]:
+  for SELECTED_COLUMN in ['so2_median']:#["o3_median", "pm25_median", "so2_median", "pm10_median", "no2_median", "co_median"]:
       
       train_data = CityDataForecast(SELECTED_COLUMN, "train")
       val_data = CityDataForecast(SELECTED_COLUMN, "test")
 
-      sampleLoader = DataLoader(train_data, 32, shuffle=True, num_workers=4)
-      val_loader = DataLoader(val_data, 4096, shuffle=False, num_workers=4)
+      sampleLoader = DataLoader(train_data, 32, shuffle=True, num_workers=4, worker_init_fn=seed_worker)
+      val_loader = DataLoader(val_data, 4096, shuffle=False, num_workers=4, worker_init_fn=seed_worker)
 
       for model_name in ['OLS', 'LASSO', 'Ridge', 'Elastic']:
           lr = 0.001

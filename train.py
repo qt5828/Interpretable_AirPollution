@@ -23,6 +23,29 @@ import math
 
 device = 'cuda'
 
+def fix_seed(random_seed):
+    """
+    fix seed to control any randomness from a code 
+    (enable stability of the experiments' results.)
+    """
+    torch.manual_seed(random_seed)
+    torch.cuda.manual_seed(random_seed)
+    torch.cuda.manual_seed_all(random_seed)  # if use multi-GPU
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+    np.random.seed(random_seed)
+    random.seed(random_seed)
+    
+fix_seed(42)
+
+def seed_worker(worker_id):
+    worker_seed = torch.initial_seed() % 2**32
+    np.random.seed(worker_seed)
+    random.seed(worker_seed)
+    
+g = torch.Generator()
+g.manual_seed(0)
+
 import warnings
 warnings.filterwarnings('ignore')
 
@@ -104,15 +127,32 @@ train_set, test_set = get_train_test_data(df)
 
 cities_list = list(train_set.keys())
 
+cnt_city_train = 0
+cnt_city_test = 0
+
 all_train = pd.DataFrame()
 for city in cities_list:
   all_train = all_train.append(train_set[city], ignore_index=True)
+  # if len(train_set[city]) != 0:
+  #   cnt_city_train += 1
+    # print("\ttrain {}: {}".format(city, len(train_set[city])))
+  
 
 all_test = pd.DataFrame({})
 for city in test_set:
   all_test = all_test.append(test_set[city], ignore_index=True)
+  # if len(test_set[city]) != 0:
+  #   cnt_city_test += 1
+    # print("\ttest {}: {}".format(city, len(test_set[city])))
+
 
 concat_df = pd.concat([all_train,all_test],axis=0)
+
+# print("length of train / val dataset")
+# print(len(all_train))
+# print(len(all_test))
+# print(cnt_city_train)
+# print(cnt_city_test)
 
 # ---------------------------------------------------------------------------- #
 col_max = {}
@@ -172,6 +212,7 @@ class CityDataP(torch.utils.data.Dataset):
     else:
       # getting data randomly for train split
       city = random.choice(cities_list)
+      print(city)
       _df = self.dataset[city]
       start_idx = random.randint(1,_df.shape[0]-SEQ_LENGTH)
       out =  _df.iloc[start_idx-1:start_idx+SEQ_LENGTH]
@@ -293,12 +334,12 @@ if __name__ == '__main__':
   dtw_loss = SoftDTW(use_cuda=True, gamma=0.1)
   lmbda = 0.5
 
-  for SELECTED_COLUMN in ["o3_median"]: # ["pm25_median", "so2_median", "pm10_median", "no2_median", "o3_median", "co_median", "so2_median"]:
+  for SELECTED_COLUMN in ["pm10_median"]: # ["pm25_median", "so2_median", "pm10_median", "no2_median", "o3_median", "co_median", "so2_median"]:
       
       train_data = CityDataP(SELECTED_COLUMN, "train")
       val_data = CityDataP(SELECTED_COLUMN, "test")
 
-      sampleLoader = DataLoader(train_data, 32, shuffle=True, num_workers=4)
+      sampleLoader = DataLoader(train_data, 32, shuffle=True, num_workers=4, worker_init_fn=seed_worker, generator=g)
       val_loader = DataLoader(val_data, 4096, shuffle=False, num_workers=4)
 
       lr = 0.001

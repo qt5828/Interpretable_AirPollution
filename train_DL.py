@@ -32,7 +32,13 @@ def seed_everything(seed):
     np.random.seed(seed)
     random.seed(seed)
     os.environ["PYTHONHASHSEED"] = str(seed)
+    print("Fix Seed")
     
+def seed_worker(_worker_id):
+    worker_seed = torch.initial_seed() % 2**32
+    np.random.seed(worker_seed)
+    random.seed(worker_seed)
+  
 seed_everything(100)
 device = 'cuda'
 
@@ -230,68 +236,6 @@ class CityDataP(torch.utils.data.Dataset):
       return (61-SEQ_LENGTH)*len(cities_list)
     return len(all_train) - (SEQ_LENGTH - 1)*len(cities_list)
 
-class CityDataForecast(torch.utils.data.Dataset):
-  def __init__(self, selected_column, split):
-    self.split = split
-    if split == "train":
-      self.dataset = train_set
-    else:
-      self.dataset = test_set
-
-    self.valid_city_idx = 0
-    self.valid_day_idx = 0
-    self.selected_column = selected_column
-
-  def __getitem__(self, idx):
-
-    # getting data randomly for train split
-    city = random.choice(cities_list)
-    _df = self.dataset[city]
-    start_idx = random.randint(1,_df.shape[0]) #!
-    out =  _df.iloc[start_idx] #!
-
-    out = out.drop(['index', 'Date', 'City'], axis=1)
-
-    Y = pd.DataFrame({})
-    Y_true = pd.DataFrame({})
-
-    for col in out.columns:
-      if col == self.selected_column:
-        Y_true[col] = out[col]
-        #print(out[col])
-        Y[col] = out[col].fillna(col_mean[city][col])
-      
-      if col in ["pm25_median", "pm10_median", "o3_median", "so2_median", "no2_median", "co_median"]:
-        out.drop([col], axis=1, inplace=True)
-      else:
-        out[col] = out[col].astype("float")
-
-    out = np.concatenate((np.array(out)[1:,:], np.array(Y)[:-1,:]), axis=1)
-    Y = np.array(Y)[1:]
-
-    Y_true = np.array(Y_true)[1:]
-
-    return out, Y, Y_true
-
-  def get_idx_data(self, idx):
-    city = cities_list[self.valid_city_idx]
-    _df = self.dataset[city]
-
-    out =  _df.iloc[self.valid_day_idx] #!
-    
-    if self.valid_day_idx >= _df.shape[0]:
-      self.valid_day_idx = 0
-      self.valid_city_idx += 1
-    else:
-      self.valid_day_idx += 1
-
-    return out, city
-
-  def __len__(self):
-    if self.split != "train":
-      return 61*len(cities_list) #!
-    return len(all_train) - len(cities_list) #!
-
 # function that implement the look_ahead mask for masking future time steps. 
 def create_look_ahead_mask(size, device=device):
     mask = torch.ones((size, size), device=device)
@@ -303,13 +247,13 @@ if __name__ == '__main__':
   dtw_loss = SoftDTW(use_cuda=True, gamma=0.1)
   lmbda = 0.5
 
-  for SELECTED_COLUMN in ["o3_median", "pm25_median", "so2_median", "pm10_median", "no2_median", "co_median"]:
+  for SELECTED_COLUMN in ["pm25_median"]:#, "so2_median", "pm10_median", "no2_median", "co_median"]:
       
       train_data = CityDataP(SELECTED_COLUMN, "train")
       val_data = CityDataP(SELECTED_COLUMN, "test")
 
-      sampleLoader = DataLoader(train_data, 32, shuffle=True, num_workers=4)
-      val_loader = DataLoader(val_data, 4096, shuffle=False, num_workers=4)
+      sampleLoader = DataLoader(train_data, 32, shuffle=True, num_workers=4, worker_init_fn=seed_worker)
+      val_loader = DataLoader(val_data, 4096, shuffle=False, num_workers=4, worker_init_fn=seed_worker)
 
       for model_name in ['RNN', 'LSTM', 'TransLSTM', 'Transformer', 'CosFormer', 'CosSquareFormer']:
           lr = 0.001
@@ -415,7 +359,7 @@ if __name__ == '__main__':
                 best_model = deepcopy(model)
                 best_mse = eval_mse
                 mape = eval_mape*100
-                torch.save(best_model.state_dict(), "./save/"+SELECTED_COLUMN+"/"+model_name+".pth")
+                torch.save(best_model.state_dict(), "./save_sep/"+SELECTED_COLUMN+"/"+model_name+".pth")
                 
           print(model_name)   
           print("Best MSE :", best_mse)
