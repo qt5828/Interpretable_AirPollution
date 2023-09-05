@@ -11,6 +11,8 @@ from torch.autograd import Function
 from numba import cuda
 import math
 
+device = torch.device("cuda")
+
 # ----------------------------------------------------------------------------------------------------------------------
 @cuda.jit
 def compute_softdtw_cuda(D, gamma, bandwidth, max_i, max_j, n_passes, R):
@@ -366,8 +368,8 @@ def profile(batch_size, seq_len_a, seq_len_b, dims, tol_backward):
     for i in range(n_iters):
         a_cpu = torch.rand((batch_size, seq_len_a, dims), requires_grad=True)
         b_cpu = torch.rand((batch_size, seq_len_b, dims))
-        a_gpu = a_cpu.cuda()
-        b_gpu = b_cpu.cuda()
+        a_gpu = a_cpu.to(device)
+        b_gpu = b_cpu.to(device)
 
         # GPU
         t_gpu, forward_gpu, backward_gpu = timed_run(a_gpu, b_gpu, sdtw_cuda)

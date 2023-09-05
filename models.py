@@ -18,7 +18,8 @@ from tqdm import tqdm
 import sklearn
 from copy import deepcopy
 
-SEQ_LENGTH = 7
+device = torch.device("cuda")
+
 
 class LinearRegression(nn.Module):
     def __init__(self, input_dim):
@@ -38,7 +39,6 @@ class LSTM(nn.Module):
         self.num_layers = num_layers
         self.input_size = input_size
         self.hidden_size = hidden_size
-        self.seq_length = SEQ_LENGTH
         self.bidrectional = bidirectional
         
         self.lstm = nn.LSTM(input_size=input_size, hidden_size=hidden_size,
@@ -48,10 +48,10 @@ class LSTM(nn.Module):
 
     def forward(self, x):
         h_0 = Variable(torch.zeros(
-            self.num_layers, x.size(0), self.hidden_size)).cuda()
+            self.num_layers, x.size(0), self.hidden_size)).to(device)
         
         c_0 = Variable(torch.zeros(
-            self.num_layers, x.size(0), self.hidden_size)).cuda()
+            self.num_layers, x.size(0), self.hidden_size)).to(device)
         # Propagate input through LSTM
         ula, (h_out, _) = self.lstm(x, (h_0, c_0))
         
@@ -70,7 +70,6 @@ class RNN(nn.Module):
         self.num_layers = num_layers
         self.input_size = input_size
         self.hidden_size = hidden_size
-        self.seq_length = SEQ_LENGTH
         
         self.rnn = nn.RNN(input_size=input_size, hidden_size=hidden_size,
                             num_layers=num_layers, batch_first=True)
@@ -79,10 +78,10 @@ class RNN(nn.Module):
 
     def forward(self, x):
         h_0 = Variable(torch.zeros(
-            self.num_layers, x.size(0), self.hidden_size)).cuda()
+            self.num_layers, x.size(0), self.hidden_size)).to(device)
         
         c_0 = Variable(torch.zeros(
-            self.num_layers, x.size(0), self.hidden_size)).cuda()
+            self.num_layers, x.size(0), self.hidden_size)).to(device)
         # Propagate input through RNN
         ula, h_out = self.rnn(x, h_0)
         
@@ -238,8 +237,8 @@ class MultiHeadAttentionCosformer(nn.Module):
         k = torch.nn.functional.elu(k) + 1 # Sigmoid torch.nn.ReLU()
 
         # q, k, v -> [batch_size, seq_len, n_heads, d_head]
-        cos = (torch.cos(1.57*torch.arange(S)/S).unsqueeze(0)).repeat(B,1).cuda()
-        sin = (torch.sin(1.57*torch.arange(S)/S).unsqueeze(0)).repeat(B,1).cuda()
+        cos = (torch.cos(1.57*torch.arange(S)/S).unsqueeze(0)).repeat(B,1).to(device)
+        sin = (torch.sin(1.57*torch.arange(S)/S).unsqueeze(0)).repeat(B,1).to(device)
         # cos, sin -> [batch_size, seq_len]
         q_cos = torch.einsum('bsnd,bs->bsnd', q, cos)
         q_sin = torch.einsum('bsnd,bs->bsnd', q, sin)
@@ -316,8 +315,8 @@ class MultiHeadAttentionCosSquareformer(nn.Module):
         k = torch.nn.functional.elu(k) + 1 # Sigmoid torch.nn.ReLU()
 
         # q, k, v -> [batch_size, seq_len, n_heads, d_head]
-        cos = (torch.cos(3.1415*torch.arange(S)/S).unsqueeze(0)).repeat(B,1).cuda()
-        sin = (torch.sin(3.1415*torch.arange(S)/S).unsqueeze(0)).repeat(B,1).cuda()
+        cos = (torch.cos(3.1415*torch.arange(S)/S).unsqueeze(0)).repeat(B,1).to(device)
+        sin = (torch.sin(3.1415*torch.arange(S)/S).unsqueeze(0)).repeat(B,1).to(device)
         # cos, sin -> [batch_size, seq_len]
         q_cos = torch.einsum('bsnd,bs->bsnd', q, cos)
         q_sin = torch.einsum('bsnd,bs->bsnd', q, sin)
